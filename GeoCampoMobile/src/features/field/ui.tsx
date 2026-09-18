@@ -4,7 +4,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { Client } from './data';
+import type { RouteVisit } from './data';
 import { currency } from './data';
 import { useFieldSession } from './session';
 import { palette, radius } from '@/theme/tokens';
@@ -14,8 +14,9 @@ export const Icon = ({ name, size = 21, color = palette.ink }: { name: IconName;
 export function Page({ children }: { children: ReactNode }) { return <SafeAreaView style={styles.page} edges={['top']}><View style={styles.content}>{children}</View></SafeAreaView>; }
 
 export function AppHeader() {
-  const { started } = useFieldSession();
-  return <View style={styles.header}><View style={styles.brandMark}><Text style={styles.brandInitials}>GC</Text></View><View style={styles.brandText}><Text style={styles.brandName}>GEOCAMPO</Text><Text style={styles.zone}>SJL · Zona 04</Text></View><View style={[styles.gps, !started && styles.gpsMuted]}><View style={[styles.gpsDot, !started && styles.gpsDotMuted]} /><Text style={[styles.gpsText, !started && styles.gpsTextMuted]}>{started ? 'GPS activo' : 'GPS pendiente'}</Text></View><View style={styles.avatar}><Text style={styles.avatarText}>CQ</Text></View></View>;
+  const { started, profile, selectedPortfolio } = useFieldSession();
+  const initials = (profile?.name || '').split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'GC';
+  return <View style={styles.header}><View style={styles.brandMark}><Text style={styles.brandInitials}>GC</Text></View><View style={styles.brandText}><Text style={styles.brandName}>GEOCAMPO</Text><Text style={styles.zone}>{selectedPortfolio?.name || 'Sin cartera asignada'}</Text></View><View style={[styles.gps, !started && styles.gpsMuted]}><View style={[styles.gpsDot, !started && styles.gpsDotMuted]} /><Text style={[styles.gpsText, !started && styles.gpsTextMuted]}>{started ? 'GPS activo' : 'GPS pendiente'}</Text></View><View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View></View>;
 }
 
 export function Pill({ label, tone = 'neutral' }: { label: string; tone?: 'red' | 'green' | 'amber' | 'neutral' }) {
@@ -30,10 +31,11 @@ export function Button({ label, onPress, variant = 'primary', icon }: { label: s
   return <Pressable onPress={onPress} style={({ pressed }) => [styles.button, variantStyle, pressed && styles.pressed]}>{icon && <Icon name={icon} size={19} color={variant === 'primary' || variant === 'dark' ? '#fff' : palette.ink} />}<Text style={[styles.buttonText, textStyle]}>{label}</Text></Pressable>;
 }
 
-export function ClientCard({ client, compact = false }: { client: Client; compact?: boolean }) {
-  const isManaged = client.status === 'Gestionado';
-  const tone = isManaged ? 'green' : client.status === 'Reprogramado' ? 'amber' : 'neutral';
-  return <View style={[styles.clientCard, compact && styles.clientCardCompact]}><View style={styles.cardTop}><Pill label={client.priority ?? client.status} tone={client.priority ? 'red' : tone} /><Text style={styles.time}>{client.time} · {client.distance}</Text></View><Text style={styles.clientName}>{client.name}</Text><Text style={styles.address}><Icon name="location-outline" size={16} color={palette.muted} /> {client.address}, {client.district}</Text><View style={styles.cardBottom}><Text style={styles.debt}>{currency(client.debt)}</Text><View style={styles.cardActions}><Link href={{ pathname: '/client/[id]', params: { id: client.id } }} asChild><Pressable style={styles.squareAction}><Icon name="person-outline" size={20} /></Pressable></Link>{isManaged ? <Link href={{ pathname: '/client/[id]', params: { id: client.id } }} asChild><Pressable style={styles.cardActionDark}><Text style={styles.cardActionText}>Ver ficha</Text></Pressable></Link> : <Link href={{ pathname: '/management/[id]', params: { id: client.id } }} asChild><Pressable style={styles.cardActionRed}><Icon name="clipboard-outline" color="#fff" size={19} /><Text style={styles.cardActionText}>Gestionar</Text></Pressable></Link>}</View></View></View>;
+export function ClientCard({ client, compact = false }: { client: RouteVisit; compact?: boolean }) {
+  const isManaged = client.state.completed;
+  const tone = isManaged ? 'green' : client.state.code === 'REPROGRAMADO' ? 'amber' : 'neutral';
+  const scheduled = client.scheduled_at ? new Date(client.scheduled_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }) : 'Sin hora programada';
+  return <View style={[styles.clientCard, compact && styles.clientCardCompact]}><View style={styles.cardTop}><Pill label={client.state.description} tone={tone} /><Text style={styles.time}>{scheduled}</Text></View><Text style={styles.clientName}>{client.name}</Text><Text style={styles.address}><Icon name="id-card-outline" size={16} color={palette.muted} /> {client.document || client.identifier}</Text><View style={styles.cardBottom}><Text style={styles.debt}>{client.management_count} gestiones</Text><View style={styles.cardActions}><Link href={{ pathname: '/client/[id]', params: { id: client.identifier, idTable: client.portfolio.idTable } }} asChild><Pressable style={styles.squareAction}><Icon name="person-outline" size={20} /></Pressable></Link>{isManaged ? <Link href={{ pathname: '/client/[id]', params: { id: client.identifier, idTable: client.portfolio.idTable } }} asChild><Pressable style={styles.cardActionDark}><Text style={styles.cardActionText}>Ver ficha</Text></Pressable></Link> : <Link href={{ pathname: '/management/[id]', params: { id: client.identifier, idTable: client.portfolio.idTable } }} asChild><Pressable style={styles.cardActionRed}><Icon name="clipboard-outline" color="#fff" size={19} /><Text style={styles.cardActionText}>Gestionar</Text></Pressable></Link>}</View></View></View>;
 }
 
 export function BackHeader({ title }: { title: string }) { return <View style={styles.backHeader}><Pressable onPress={() => router.back()} hitSlop={12}><Icon name="arrow-back" size={26} /></Pressable><Text style={styles.backTitle}>{title}</Text></View>; }
