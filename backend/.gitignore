@@ -2,10 +2,3 @@
 node_modules/
 .env
 .env.production
-src/app/
-src/components/
-src/constants/
-src/features/
-src/hooks/
-src/theme/
-src/global.css
