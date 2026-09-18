@@ -17,5 +17,8 @@ export const api = {
   clients: (token: string, idTable: number, q: string) => request<{ portfolio: Portfolio; items: Client[] }>(`/field/clients?idTable=${idTable}&q=${encodeURIComponent(q)}`, {}, token),
   client: (token: string, idTable: number, identifier: string) => request<{ item: Client }>(`/field/clients/${encodeURIComponent(identifier)}?idTable=${idTable}`, {}, token),
   history: (token: string, idTable: number, identifier: string) => request<{ items: ManagementRecord[] }>(`/field/clients/${encodeURIComponent(identifier)}/history?idTable=${idTable}`, {}, token),
+  advisors: (token: string, idCartera: number) => request<{ items: Advisor[] }>(`/supervisor/advisors?idCartera=${idCartera}`, {}, token),
+  reportLocation: (token: string, location: { latitude: number; longitude: number; accuracy: number | null }, active = true) => request<void>('/field/location', { method: 'POST', body: JSON.stringify({ ...location, active }) }, token),
 };
 export type ManagementRecord = { id: number; created_at: string; time?: string; effect?: string; reason?: string; observation?: string; promise_date?: string; promise_amount?: number; latitud?: number; longitud?: number };
+export type Advisor = { id: number; name: string; assigned: number; managed_today: number; last_management_at?: string; latitude: number | null; longitude: number | null; live: boolean; location_source: string | null };
