@@ -1,5 +1,7 @@
 const app = require('./app.json').expo;
-const googleMapsApiKey = process.env.GOOGLE_MAPS_API_KEY;
+// Android usa una clave restringida al paquete y certificado de GeoCampo.
+// Se mantiene el nombre genérico como respaldo para configuraciones anteriores.
+const googleMapsApiKey = process.env.GOOGLE_MAPS_ANDROID_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
 
 module.exports = () => ({
   ...app,
