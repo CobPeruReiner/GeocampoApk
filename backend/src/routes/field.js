@@ -63,12 +63,22 @@ router.post("/location", async (req, res, next) => {
     const longitude = Number(req.body.longitude);
     const accuracy = req.body.accuracy === null || req.body.accuracy === undefined ? null : Number(req.body.accuracy);
     const active = req.body.active !== false ? 1 : 0;
+    const portfolio = await portfolioForUser(req.user.id, req.body.idTable);
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return res.status(400).json({ message: "Coordenadas inválidas." });
     await pool.execute(
       `INSERT INTO geocampo_ubicacion_actual (id_personal, latitud, longitud, precision_metros, jornada_activa)
        VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE latitud = VALUES(latitud), longitud = VALUES(longitud), precision_metros = VALUES(precision_metros), jornada_activa = VALUES(jornada_activa), actualizado_en = CURRENT_TIMESTAMP`,
       [req.user.id, latitude, longitude, Number.isFinite(accuracy) ? accuracy : null, active],
     );
+    const event = active ? 'location:update' : 'location:inactive';
+    req.app.get('io')?.to(`supervisor:${portfolio.id_cartera}`).emit(event, {
+      advisorId: req.user.id,
+      idCartera: portfolio.id_cartera,
+      latitude,
+      longitude,
+      accuracy: Number.isFinite(accuracy) ? accuracy : null,
+      updatedAt: new Date().toISOString(),
+    });
     res.status(204).end();
   } catch (error) { next(error); }
 });
@@ -208,6 +218,36 @@ router.get("/clients/:identifier/history", async (req, res, next) => {
       [req.params.identifier, portfolio.id_cartera],
     );
     res.json({ portfolio, items: rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/history", async (req, res, next) => {
+  try {
+    const portfolio = await portfolioForUser(req.user.id, req.query.idTable);
+    const endDate = dateValue(req.query.to);
+    const startDate = dateValue(req.query.from || new Date(Date.parse(`${endDate}T12:00:00`) - 6 * 86400000).toISOString().slice(0, 10));
+    if (startDate > endDate) {
+      throw Object.assign(new Error("El rango de fechas no es válido."), { status: 400 });
+    }
+    const [rows] = await pool.execute(
+      `
+      SELECT g.ID AS id, g.FECHA AS created_at,
+        e.EFECTO AS effect, m.MOTIVO AS reason, c.CONTACTO AS contact,
+        g.OBSERVACION AS observation, g.FECHA_PROMESA AS promise_date,
+        g.MONTO_PROMESA AS promise_amount, g.latitud, g.longitud,
+        gps.NOMBRE_GEOCAMPO_ESTADO_GPS AS gps_status
+      FROM GEOCAMPO g
+      LEFT JOIN efecto e ON e.IDEFECTO = g.IDEFECTO
+      LEFT JOIN motivo m ON m.IDMOTIVO = g.IDMOTIVO
+      LEFT JOIN contacto c ON c.IDCONTACTO = g.IDCONTACTO
+      LEFT JOIN GEOCAMPO_ESTADO_GPS gps ON gps.ID_GEOCAMPO_ESTADO_GPS = g.ID_GEOCAMPO_ESTADO_GPS
+      WHERE g.IDPERSONAL = ? AND g.IDCARTERA = ? AND DATE(g.FECHA) BETWEEN ? AND ?
+      ORDER BY g.FECHA DESC, g.ID DESC LIMIT 100`,
+      [req.user.id, portfolio.id_cartera, startDate, endDate],
+    );
+    res.json({ portfolio, range: { startDate, endDate }, items: rows });
   } catch (error) {
     next(error);
   }

@@ -1,12 +1,17 @@
 require("dotenv").config();
 const express = require("express");
+const http = require('http');
 const cors = require("cors");
 const { pool } = require("./config/database");
 const authRoutes = require("./routes/auth");
 const fieldRoutes = require("./routes/field");
 const supervisorRoutes = require("./routes/supervisor");
+const { attachRealtime } = require('./realtime');
 
 const app = express();
+const server = http.createServer(app);
+const io = attachRealtime(server);
+app.set('io', io);
 app.disable("x-powered-by");
 app.use(cors({ origin: true, credentials: false }));
 app.use(express.json({ limit: "1mb" }));
@@ -33,6 +38,6 @@ app.use((error, _req, res, _next) => {
 });
 
 const port = Number(process.env.PORT || 3000);
-app.listen(port, "0.0.0.0", () =>
+server.listen(port, "0.0.0.0", () =>
   console.log(`GeoCampo API listening on ${port}`),
 );

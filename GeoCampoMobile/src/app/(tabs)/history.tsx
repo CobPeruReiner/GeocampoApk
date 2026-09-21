@@ -1,5 +1,25 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppHeader, Icon, Page } from '@/features/field/ui';
+import { useFieldSession } from '@/features/field/session';
+import { api, type ManagementRecord } from '@/services/api';
 import { palette, radius } from '@/theme/tokens';
-export default function HistoryScreen(){return <Page><AppHeader/><ScrollView contentContainerStyle={styles.scroll}><Text style={styles.title}>Historial</Text><View style={styles.empty}><Icon name="time-outline" size={34} color={palette.green}/><Text style={styles.heading}>Consulta una ficha para ver su historial</Text><Text style={styles.text}>El historial se recuperará desde las gestiones reales de la cuenta seleccionada, sin datos de demostración.</Text></View></ScrollView></Page>}
-const styles=StyleSheet.create({scroll:{padding:20,gap:16},title:{fontSize:30,fontWeight:'800',color:palette.ink},empty:{borderWidth:1.5,borderColor:palette.line,borderRadius:radius.lg,padding:28,alignItems:'center',gap:10},heading:{fontSize:18,fontWeight:'800',color:palette.ink,textAlign:'center'},text:{color:palette.muted,textAlign:'center',lineHeight:21}});
+function dateLabel(value: string) { return new Date(value).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' }); }
+function ManagementCard({ item }: { item: ManagementRecord }) {
+  return <View style={styles.card}>
+    <View style={styles.cardTop}><View style={styles.effect}><Icon name="clipboard-outline" size={18} color={palette.red}/><Text style={styles.effectText}>{item.effect || 'Gestión registrada'}</Text></View><Text style={styles.date}>{dateLabel(item.created_at)}</Text></View>
+    {item.reason ? <Text style={styles.reason}>{item.reason}</Text> : null}
+    {item.contact ? <Text style={styles.meta}>Contacto: {item.contact}</Text> : null}
+    {item.observation ? <Text style={styles.observation}>{item.observation}</Text> : null}
+    <View style={styles.footer}>{item.gps_status ? <Text style={styles.gps}>GPS: {item.gps_status}</Text> : <Text style={styles.gps}>Sin estado GPS registrado</Text>}{item.promise_amount ? <Text style={styles.promise}>Promesa: S/ {Number(item.promise_amount).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</Text> : null}</View>
+  </View>;
+}
+export default function HistoryScreen(){
+  const { token, selectedPortfolio } = useFieldSession();
+  const [items, setItems] = useState<ManagementRecord[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [range, setRange] = useState('');
+  const load = useCallback(async () => { if (!token || !selectedPortfolio) { setLoading(false); return; } setLoading(true); setError(''); try { const result = await api.personalHistory(token, selectedPortfolio.id_table); setItems(result.items); setRange(`${result.range.startDate} al ${result.range.endDate}`); } catch (cause) { setError(cause instanceof Error ? cause.message : 'No fue posible cargar el historial.'); } finally { setLoading(false); } }, [token, selectedPortfolio]);
+  useEffect(() => { load(); }, [load]);
+  const subtitle = useMemo(() => range ? `Tus gestiones reales del ${range}.` : 'Tus gestiones reales de los últimos siete días.', [range]);
+  return <Page><AppHeader/><ScrollView contentContainerStyle={styles.scroll} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={palette.red}/> }><Text style={styles.title}>Historial</Text><Text style={styles.subtitle}>{subtitle}</Text>{loading && items.length === 0 ? <ActivityIndicator color={palette.red} size="large"/> : null}{error ? <View style={styles.notice}><Icon name="warning-outline" color={palette.amber}/><Text style={styles.noticeText}>{error}</Text></View> : null}{!loading && !error && items.length === 0 ? <View style={styles.empty}><Icon name="time-outline" size={34} color={palette.green}/><Text style={styles.heading}>No hay gestiones en este periodo</Text><Text style={styles.text}>La información se lee directamente de GEOCAMPO para la cartera seleccionada.</Text></View> : null}{items.map((item) => <ManagementCard key={item.id} item={item}/>)}</ScrollView></Page>;
+}
+const styles=StyleSheet.create({scroll:{padding:20,gap:14,paddingBottom:28},title:{fontSize:30,fontWeight:'800',color:palette.ink},subtitle:{color:palette.muted,fontSize:15,lineHeight:21,marginBottom:4},empty:{borderWidth:1.5,borderColor:palette.line,borderRadius:radius.lg,padding:28,alignItems:'center',gap:10},heading:{fontSize:18,fontWeight:'800',color:palette.ink,textAlign:'center'},text:{color:palette.muted,textAlign:'center',lineHeight:21},notice:{flexDirection:'row',gap:9,alignItems:'center',borderRadius:14,padding:14,backgroundColor:palette.amberSoft},noticeText:{flex:1,color:'#8A4B00',fontWeight:'700',lineHeight:20},card:{backgroundColor:palette.surface,borderWidth:1.5,borderColor:palette.line,borderRadius:radius.lg,padding:16,gap:8},cardTop:{gap:7},effect:{flexDirection:'row',alignItems:'center',gap:7},effectText:{flex:1,color:palette.ink,fontWeight:'800',fontSize:17},date:{color:palette.muted,fontSize:13,fontWeight:'700'},reason:{color:palette.ink,fontSize:15,fontWeight:'700'},meta:{color:palette.muted,fontSize:14},observation:{color:'#5D5751',fontSize:14,lineHeight:21},footer:{borderTopWidth:1,borderTopColor:palette.line,paddingTop:9,flexDirection:'row',justifyContent:'space-between',gap:8},gps:{color:palette.green,fontSize:12,fontWeight:'800',flex:1},promise:{color:palette.red,fontSize:12,fontWeight:'800',textAlign:'right'}});

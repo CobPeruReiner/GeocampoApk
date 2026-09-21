@@ -4,6 +4,7 @@ const baseUrl = process.env.EXPO_PUBLIC_API_URL;
 if (!baseUrl) throw new Error('Falta EXPO_PUBLIC_API_URL. Configura la URL de la API local.');
 
 export class ApiError extends Error { constructor(message: string, public status: number) { super(message); } }
+export const socketUrl = baseUrl.replace(/\/api\/?$/, '');
 async function request<T>(path: string, init: RequestInit = {}, token?: string): Promise<T> {
   const response = await fetch(`${baseUrl}${path}`, { ...init, headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...init.headers } });
   const body = await response.json().catch(() => ({}));
@@ -17,8 +18,9 @@ export const api = {
   clients: (token: string, idTable: number, q: string) => request<{ portfolio: Portfolio; items: Client[] }>(`/field/clients?idTable=${idTable}&q=${encodeURIComponent(q)}`, {}, token),
   client: (token: string, idTable: number, identifier: string) => request<{ item: Client }>(`/field/clients/${encodeURIComponent(identifier)}?idTable=${idTable}`, {}, token),
   history: (token: string, idTable: number, identifier: string) => request<{ items: ManagementRecord[] }>(`/field/clients/${encodeURIComponent(identifier)}/history?idTable=${idTable}`, {}, token),
+  personalHistory: (token: string, idTable: number, from?: string, to?: string) => request<{ range: { startDate: string; endDate: string }; items: ManagementRecord[] }>(`/field/history?idTable=${idTable}${from ? `&from=${encodeURIComponent(from)}` : ''}${to ? `&to=${encodeURIComponent(to)}` : ''}`, {}, token),
   advisors: (token: string, idCartera: number) => request<{ items: Advisor[] }>(`/supervisor/advisors?idCartera=${idCartera}`, {}, token),
-  reportLocation: (token: string, location: { latitude: number; longitude: number; accuracy: number | null }, active = true) => request<void>('/field/location', { method: 'POST', body: JSON.stringify({ ...location, active }) }, token),
+  reportLocation: (token: string, idTable: number, location: { latitude: number; longitude: number; accuracy: number | null }, active = true) => request<void>('/field/location', { method: 'POST', body: JSON.stringify({ ...location, idTable, active }) }, token),
 };
-export type ManagementRecord = { id: number; created_at: string; time?: string; effect?: string; reason?: string; observation?: string; promise_date?: string; promise_amount?: number; latitud?: number; longitud?: number };
+export type ManagementRecord = { id: number; created_at: string; time?: string; effect?: string; reason?: string; contact?: string; observation?: string; promise_date?: string; promise_amount?: number; latitud?: number; longitud?: number; gps_status?: string };
 export type Advisor = { id: number; name: string; assigned: number; managed_today: number; last_management_at?: string; latitude: number | null; longitude: number | null; live: boolean; location_source: string | null };

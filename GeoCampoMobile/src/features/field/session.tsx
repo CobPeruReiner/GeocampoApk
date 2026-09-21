@@ -34,11 +34,11 @@ export function FieldSessionProvider({ children }: { children: React.ReactNode }
   useEffect(() => { SecureStore.getItemAsync('geocampo.session').then(async (saved) => { if (saved) { try { const session = JSON.parse(saved) as { token: string }; setToken(session.token); await loadInitial(session.token); } catch { await SecureStore.deleteItemAsync('geocampo.session'); } } setReady(true); }); }, []);
   useEffect(() => NetInfo.addEventListener((state) => setOnline(Boolean(state.isConnected && state.isInternetReachable !== false))), []);
   useEffect(() => {
-    if (!started || !token || !location) return;
-    api.reportLocation(token, location, true)
+    if (!started || !token || !location || !selectedPortfolio) return;
+    api.reportLocation(token, selectedPortfolio.id_table, location, true)
       .then(() => setLocationError(null))
       .catch(() => setLocationError('No fue posible reportar tu ubicación al servidor.'));
-  }, [started, token, location]);
+  }, [started, token, location, selectedPortfolio]);
   useEffect(() => {
     if (!started) return;
     let subscription: Location.LocationSubscription | undefined;
@@ -60,13 +60,13 @@ export function FieldSessionProvider({ children }: { children: React.ReactNode }
       const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       const report = { latitude: current.coords.latitude, longitude: current.coords.longitude, accuracy: current.coords.accuracy, updatedAt: current.timestamp };
       setLocation(report);
-      if (started && token) await api.reportLocation(token, report, true);
+      if (started && token && selectedPortfolio) await api.reportLocation(token, selectedPortfolio.id_table, report, true);
       setLocationError(null); return true;
     } catch { setLocationError('No fue posible obtener la ubicación actual.'); return false; }
   };
   const login = async (username: string, password: string) => { const session = await api.login(username, password); setToken(session.token); await SecureStore.setItemAsync('geocampo.session', JSON.stringify({ token: session.token })); await loadInitial(session.token); };
   const logout = async () => { await SecureStore.deleteItemAsync('geocampo.session'); setToken(null); setProfile(null); setPortfolios([]); setSelectedPortfolio(null); setStarted(false); };
-  const toggleJornada = () => { if (started) { if (token && location) api.reportLocation(token, location, false).catch(() => undefined); setStarted(false); return; } requestLocation().then((granted) => { if (granted) setStarted(true); }); };
+  const toggleJornada = () => { if (started) { if (token && location && selectedPortfolio) api.reportLocation(token, selectedPortfolio.id_table, location, false).catch(() => undefined); setStarted(false); return; } requestLocation().then((granted) => { if (granted) setStarted(true); }); };
   const value = useMemo(() => ({ started, toggleJornada, pendingSync: 0, ready, token, profile, portfolios, selectedPortfolio, selectPortfolio: setSelectedPortfolio, login, logout, online, location, locationError, requestLocation }), [started, ready, token, profile, portfolios, selectedPortfolio, online, location, locationError]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

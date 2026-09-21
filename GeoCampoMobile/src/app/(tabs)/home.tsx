@@ -8,7 +8,8 @@ import { useFieldSession } from '@/features/field/session';
 import { api } from '@/services/api';
 import { palette, radius } from '@/theme/tokens';
 import { FieldMap } from '@/features/field/map';
-import type { Advisor } from '@/services/api';
+import { socketUrl, type Advisor } from '@/services/api';
+import { io } from 'socket.io-client';
 
 export default function HomeScreen() {
   const { ready, token, profile, selectedPortfolio, login, started, toggleJornada, location, online, locationError, requestLocation } = useFieldSession();
@@ -25,6 +26,19 @@ export default function HomeScreen() {
     loadAdvisors();
     const interval = setInterval(loadAdvisors, 15_000);
     return () => { mounted = false; clearInterval(interval); };
+  }, [token, selectedPortfolio, profile?.isSupervisor]);
+  useEffect(() => {
+    if (!token || !selectedPortfolio || !profile?.isSupervisor) return;
+    const socket = io(socketUrl, { auth: { token }, transports: ['websocket'] });
+    socket.on('location:update', (event: { advisorId: number; idCartera: number; latitude: number; longitude: number }) => {
+      if (event.idCartera !== selectedPortfolio.id_cartera) return;
+      setAdvisors((current) => current.map((advisor) => advisor.id === event.advisorId ? { ...advisor, latitude: event.latitude, longitude: event.longitude, live: true, location_source: 'Ubicación en jornada' } : advisor));
+    });
+    socket.on('location:inactive', (event: { advisorId: number; idCartera: number }) => {
+      if (event.idCartera !== selectedPortfolio.id_cartera) return;
+      setAdvisors((current) => current.map((advisor) => advisor.id === event.advisorId ? { ...advisor, live: false } : advisor));
+    });
+    return () => { socket.disconnect(); };
   }, [token, selectedPortfolio, profile?.isSupervisor]);
   if (!ready) return <Page><View style={styles.center}><ActivityIndicator color={palette.red}/></View></Page>;
   if (!token || !profile) return <Redirect href="/sign-in"/>;
