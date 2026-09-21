@@ -33,14 +33,25 @@ export function FieldSessionProvider({ children }: { children: React.ReactNode }
   };
   useEffect(() => { SecureStore.getItemAsync('geocampo.session').then(async (saved) => { if (saved) { try { const session = JSON.parse(saved) as { token: string }; setToken(session.token); await loadInitial(session.token); } catch { await SecureStore.deleteItemAsync('geocampo.session'); } } setReady(true); }); }, []);
   useEffect(() => NetInfo.addEventListener((state) => setOnline(Boolean(state.isConnected && state.isInternetReachable !== false))), []);
-  useEffect(() => { if (started && token && location) api.reportLocation(token, location, true).catch(() => undefined); }, [started, token, location]);
+  useEffect(() => {
+    if (!started || !token || !location) return;
+    api.reportLocation(token, location, true)
+      .then(() => setLocationError(null))
+      .catch(() => setLocationError('No fue posible reportar tu ubicación al servidor.'));
+  }, [started, token, location]);
   useEffect(() => {
     if (!started) return;
     let subscription: Location.LocationSubscription | undefined;
     Location.watchPositionAsync({ accuracy: Location.Accuracy.High, timeInterval: 60_000, distanceInterval: 20 }, (position) => {
       setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy, updatedAt: position.timestamp });
     }).then((watcher) => { subscription = watcher; }).catch(() => setLocationError('Se perdió el seguimiento de ubicación.'));
-    return () => subscription?.remove();
+    const heartbeat = setInterval(async () => {
+      try {
+        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy, updatedAt: position.timestamp });
+      } catch { setLocationError('No fue posible actualizar tu ubicación.'); }
+    }, 60_000);
+    return () => { subscription?.remove(); clearInterval(heartbeat); };
   }, [started]);
   const requestLocation = async () => {
     const permission = await Location.requestForegroundPermissionsAsync();
