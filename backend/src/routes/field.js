@@ -5,6 +5,7 @@ const {
   safeIdentifier,
   portfolioForUser,
   portfoliosForUser,
+  portfoliosForSupervisor,
   guiColumns,
   formatClient,
 } = require("../utils/field");
@@ -43,7 +44,9 @@ function visitState(code, description) {
 
 router.get("/initial", async (req, res, next) => {
   try {
-    const portfolios = await portfoliosForUser(req.user.id);
+    const portfolios = req.user.isSupervisor
+      ? await portfoliosForSupervisor(req.user.id)
+      : await portfoliosForUser(req.user.id);
     res.json({
       profile: req.user,
       portfolios,

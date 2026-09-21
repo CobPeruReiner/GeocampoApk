@@ -22,6 +22,24 @@ async function portfoliosForUser(userId) {
   return rows;
 }
 
+// ruta_supervisor2.php obtiene sus carteras mediante este mismo procedimiento.
+// Se conserva un fallback a la asignación directa para no bloquear roles que no
+// estén cubiertos por el procedimiento.
+async function portfoliosForSupervisor(userId) {
+  const [procedureSets] = await pool.query('CALL GetAsignacion2(?)', [userId]);
+  const procedureRows = Array.isArray(procedureSets) && Array.isArray(procedureSets[0]) ? procedureSets[0] : [];
+  const tableIds = [...new Set(procedureRows.map((row) => Number(firstValue(row, ['ID_TABLA', 'ID_TABLE']))).filter(Number.isInteger))];
+  if (!tableIds.length) return portfoliosForUser(userId);
+  const placeholders = tableIds.map(() => '?').join(',');
+  const [rows] = await pool.execute(`
+    SELECT tl.id AS id_table, tl.id_cartera, tl.nombre AS table_name, c.cartera AS name, c.tipo AS portfolio_type
+    FROM tabla_log tl INNER JOIN cartera c ON c.id = tl.id_cartera
+    WHERE tl.id IN (${placeholders}) AND tl.estado = 0 AND c.estado = 1`, tableIds);
+  const byId = new Map(rows.map((row) => [Number(row.id_table), row]));
+  const ordered = tableIds.map((id) => byId.get(id)).filter(Boolean);
+  return ordered.length ? ordered : portfoliosForUser(userId);
+}
+
 async function portfolioForUser(userId, requestedTable) {
   const portfolios = await portfoliosForUser(userId);
   if (!portfolios.length) throw Object.assign(new Error('No tienes carteras de campo asignadas.'), { status: 403 });
@@ -54,4 +72,4 @@ function formatClient(record, portfolio, fields) {
   };
 }
 
-module.exports = { safeIdentifier, firstValue, portfoliosForUser, portfolioForUser, guiColumns, formatClient };
+module.exports = { safeIdentifier, firstValue, portfoliosForUser, portfoliosForSupervisor, portfolioForUser, guiColumns, formatClient };
