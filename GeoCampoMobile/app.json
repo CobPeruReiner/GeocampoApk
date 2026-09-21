@@ -40,6 +40,12 @@
           "locationWhenInUsePermission": "GeoCampo usa tu ubicación durante la jornada operativa para validar las visitas.",
           "isAndroidBackgroundLocationEnabled": false
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "GeoCampo usa la cámara para registrar evidencias de las visitas."
+        }
       ]
     ],
     "experiments": {

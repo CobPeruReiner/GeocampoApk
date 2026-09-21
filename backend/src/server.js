@@ -6,6 +6,7 @@ const { pool } = require("./config/database");
 const authRoutes = require("./routes/auth");
 const fieldRoutes = require("./routes/field");
 const supervisorRoutes = require("./routes/supervisor");
+const managementRoutes = require('./routes/management');
 const { attachRealtime } = require('./realtime');
 
 const app = express();
@@ -26,6 +27,7 @@ app.get("/api/health", async (_req, res, next) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/field", fieldRoutes);
 app.use("/api/supervisor", supervisorRoutes);
+app.use('/api/management', managementRoutes);
 app.use((error, _req, res, _next) => {
   console.error(error);
   res

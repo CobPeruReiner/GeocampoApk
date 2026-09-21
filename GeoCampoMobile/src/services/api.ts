@@ -20,7 +20,20 @@ export const api = {
   history: (token: string, idTable: number, identifier: string) => request<{ items: ManagementRecord[] }>(`/field/clients/${encodeURIComponent(identifier)}/history?idTable=${idTable}`, {}, token),
   personalHistory: (token: string, idTable: number, from?: string, to?: string) => request<{ range: { startDate: string; endDate: string }; items: ManagementRecord[] }>(`/field/history?idTable=${idTable}${from ? `&from=${encodeURIComponent(from)}` : ''}${to ? `&to=${encodeURIComponent(to)}` : ''}`, {}, token),
   advisors: (token: string, idCartera: number) => request<{ items: Advisor[] }>(`/supervisor/advisors?idCartera=${idCartera}`, {}, token),
+  managementOptions: (token: string, idTable: number, identifier: string) => request<ManagementOptions>(`/management/${encodeURIComponent(identifier)}/options?idTable=${idTable}`, {}, token),
+  managementEffects: (token: string, actionId: number) => request<{ items: ManagementEffect[] }>(`/management/catalog/effects/${actionId}`, {}, token),
+  managementMotives: (token: string, effectId: number) => request<{ items: ManagementOption[] }>(`/management/catalog/motives/${effectId}`, {}, token),
+  managementContacts: (token: string, effectId: number) => request<{ items: ManagementOption[] }>(`/management/catalog/contacts/${effectId}`, {}, token),
+  saveManagement: async (token: string, identifier: string, form: FormData) => {
+    const response = await fetch(`${baseUrl}/management/${encodeURIComponent(identifier)}`, { method: 'POST', headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, body: form });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new ApiError(body.message || 'No fue posible guardar la gestión.', response.status);
+    return body as { message: string; id?: number };
+  },
   reportLocation: (token: string, idTable: number, location: { latitude: number; longitude: number; accuracy: number | null }, active = true) => request<void>('/field/location', { method: 'POST', body: JSON.stringify({ ...location, idTable, active }) }, token),
 };
 export type ManagementRecord = { id: number; created_at: string; time?: string; effect?: string; reason?: string; contact?: string; observation?: string; promise_date?: string; promise_amount?: number; latitud?: number; longitud?: number; gps_status?: string };
 export type Advisor = { id: number; name: string; assigned: number; managed_today: number; last_management_at?: string; latitude: number | null; longitude: number | null; live: boolean; location_source: string | null };
+export type ManagementOption = { id: number; name: string };
+export type ManagementEffect = ManagementOption & { promise: boolean };
+export type ManagementOptions = { client: { identifier: string; document?: string }; actions: ManagementOption[]; addresses: { id: number; address: string }[] };

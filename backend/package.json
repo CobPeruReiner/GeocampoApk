@@ -20,8 +20,10 @@
     "jsonwebtoken": "^9.0.3",
     "moment": "^2.31.0",
     "moment-timezone": "^0.6.4",
+    "multer": "^2.4.0",
     "mysql2": "^3.24.4",
     "sequelize": "^6.37.8",
+    "sharp": "^0.35.4",
     "socket.io": "^4.8.3"
   }
 }
