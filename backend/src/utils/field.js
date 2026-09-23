@@ -49,6 +49,15 @@ async function portfolioForUser(userId, requestedTable) {
   return selected;
 }
 
+async function portfolioForSupervisor(userId, requestedTable) {
+  const portfolios = await portfoliosForSupervisor(userId);
+  if (!portfolios.length) throw Object.assign(new Error('No tienes carteras disponibles para supervisar.'), { status: 403 });
+  const selected = requestedTable ? portfolios.find((item) => Number(item.id_table) === Number(requestedTable)) : portfolios[0];
+  if (!selected) throw Object.assign(new Error('La cartera solicitada no está disponible para tu supervisión.'), { status: 403 });
+  safeIdentifier(selected.table_name);
+  return selected;
+}
+
 async function guiColumns(idTable) {
   const [rows] = await pool.execute(`
     SELECT campo AS field, COALESCE(NULLIF(alias, ''), campo) AS header, COALESCE(type, 'TEXT') AS type,
@@ -72,4 +81,4 @@ function formatClient(record, portfolio, fields) {
   };
 }
 
-module.exports = { safeIdentifier, firstValue, portfoliosForUser, portfoliosForSupervisor, portfolioForUser, guiColumns, formatClient };
+module.exports = { safeIdentifier, firstValue, portfoliosForUser, portfoliosForSupervisor, portfolioForUser, portfolioForSupervisor, guiColumns, formatClient };
